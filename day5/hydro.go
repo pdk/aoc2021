@@ -27,9 +27,33 @@ func drawLine(v vent) {
 		drawVertical(v)
 	case v.y1 == v.y2:
 		drawHorizontal(v)
-		// default:
-		// 	log.Fatalf("can't handle vent %#v", v)
+	default:
+		drawDiagonal(v)
 	}
+}
+
+func drawDiagonal(v vent) {
+
+	x1, y1, x2, y2 := v.x1, v.y1, v.x2, v.y2
+	if x1 > x2 {
+		// make sure x goes small -> large
+		x1, y1, x2, y2 = x2, y2, x1, y1
+	}
+
+	// is y rising or falling?
+	riseFall := 1
+	if y1 > y2 {
+		riseFall = -1
+	}
+
+	i, j := x1, y1
+	for i <= x2 {
+		chart[i][j]++
+
+		i++
+		j += riseFall
+	}
+
 }
 
 func drawVertical(v vent) {
