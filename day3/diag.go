@@ -67,8 +67,6 @@ func part1(args []string, stdout io.Writer) error {
 
 		bit0, bit1 := countBits(data, p)
 
-		// log.Printf("pos %d: bit0 %d, bit1 %d", p, bit0, bit1)
-
 		if bit1 > bit0 {
 			gamma = setBitAt(gamma, p)
 		} else {
