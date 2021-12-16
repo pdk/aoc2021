@@ -8,7 +8,11 @@ import (
 )
 
 func main() {
-	if err := run(os.Args, os.Stdout); err != nil {
+	if err := part1(os.Args, os.Stdout); err != nil {
+		fmt.Fprintf(os.Stderr, "%s\n", err)
+		os.Exit(1)
+	}
+	if err := part2(os.Args, os.Stdout); err != nil {
 		fmt.Fprintf(os.Stderr, "%s\n", err)
 		os.Exit(1)
 	}
@@ -94,17 +98,40 @@ func (b board) setCalled(value int) board {
 	return b
 }
 
-func run(args []string, stdout io.Writer) error {
+func part1(args []string, stdout io.Writer) error {
 
 	for c, value := range moves {
 		for i := 0; i < len(boards); i++ {
 			boards[i] = boards[i].setCalled(value)
 			if boards[i].bingo {
-				log.Printf("bingo! move %d, board %d, score %d", c+1, i, boards[i].score)
+				log.Printf("bingo! first winner move %d, board %d, score %d", c+1, i, boards[i].score)
 				return nil
 			}
 		}
 	}
+
+	return nil
+}
+
+func part2(args []string, stdout io.Writer) error {
+
+	lastWinner := -1
+
+	for _, value := range moves {
+		for i := 0; i < len(boards); i++ {
+			if boards[i].bingo {
+				// skip boards that already won
+				continue
+			}
+
+			boards[i] = boards[i].setCalled(value)
+			if boards[i].bingo {
+				lastWinner = i
+			}
+		}
+	}
+
+	log.Printf("bingo! last winner after %d moves, board %d, score %d", len(moves), lastWinner, boards[lastWinner].score)
 
 	return nil
 }
