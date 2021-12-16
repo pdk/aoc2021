@@ -8,7 +8,11 @@ import (
 )
 
 func main() {
-	if err := run(os.Args, os.Stdout); err != nil {
+	if err := part1(os.Args, os.Stdout); err != nil {
+		fmt.Fprintf(os.Stderr, "%s\n", err)
+		os.Exit(1)
+	}
+	if err := part2(os.Args, os.Stdout); err != nil {
 		fmt.Fprintf(os.Stderr, "%s\n", err)
 		os.Exit(1)
 	}
@@ -40,24 +44,30 @@ func setBitAt(value, pos int) int {
 	return value | masks[pos]
 }
 
-func run(args []string, stdout io.Writer) error {
+func countBits(data []int, pos int) (int, int) {
+	bit0 := 0
+	bit1 := 0
+
+	for _, d := range data {
+		if isBitSet(d, pos) {
+			bit1++
+		} else {
+			bit0++
+		}
+	}
+
+	return bit0, bit1
+}
+
+func part1(args []string, stdout io.Writer) error {
 
 	var gamma, epsilon int
 
 	for p := 0; p < 12; p++ {
 
-		bit0 := 0
-		bit1 := 0
+		bit0, bit1 := countBits(data, p)
 
-		for _, d := range data {
-			if isBitSet(d, p) {
-				bit1++
-			} else {
-				bit0++
-			}
-		}
-
-		log.Printf("pos %d: bit0 %d, bit1 %d", p, bit0, bit1)
+		// log.Printf("pos %d: bit0 %d, bit1 %d", p, bit0, bit1)
 
 		if bit1 > bit0 {
 			gamma = setBitAt(gamma, p)
@@ -69,4 +79,86 @@ func run(args []string, stdout io.Writer) error {
 	log.Printf("gamma %d (%b), epsilon %d (%b), power consumption %d", gamma, gamma, epsilon, epsilon, gamma*epsilon)
 
 	return nil
+}
+
+func filterBitPosOn(data []int, pos int) []int {
+
+	filtered := []int{}
+
+	for _, d := range data {
+		if isBitSet(d, pos) {
+			filtered = append(filtered, d)
+		}
+	}
+
+	return filtered
+}
+
+func filterBitPosOff(data []int, pos int) []int {
+
+	filtered := []int{}
+
+	for _, d := range data {
+		if !isBitSet(d, pos) {
+			filtered = append(filtered, d)
+		}
+	}
+
+	return filtered
+}
+
+func part2(args []string, stdout io.Writer) error {
+
+	o := oxygenGeneratorRating()
+	c := co2ScrubberRating()
+
+	log.Printf("oxygen generator rating %d, co2 scrubber rating %d, life support rating %d", o, c, o*c)
+
+	return nil
+}
+
+func oxygenGeneratorRating() int {
+
+	// make a local copy of the data
+	data := append([]int{}, data...)
+
+	for p := 11; p > 0; p-- {
+
+		bit0, bit1 := countBits(data, p)
+
+		if bit1 >= bit0 {
+			data = filterBitPosOn(data, p)
+		} else {
+			data = filterBitPosOff(data, p)
+		}
+
+		if len(data) == 1 {
+			break
+		}
+	}
+
+	return data[0]
+}
+
+func co2ScrubberRating() int {
+
+	// make a local copy of the data
+	data := append([]int{}, data...)
+
+	for p := 11; p > 0; p-- {
+
+		bit0, bit1 := countBits(data, p)
+
+		if bit1 < bit0 {
+			data = filterBitPosOn(data, p)
+		} else {
+			data = filterBitPosOff(data, p)
+		}
+
+		if len(data) == 1 {
+			break
+		}
+	}
+
+	return data[0]
 }
