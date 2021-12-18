@@ -59,10 +59,17 @@ func totalCost(goalPos int64) int64 {
 	cost := int64(0)
 
 	for _, p := range crabStartPositions {
-		cost += abs(goalPos - p)
+		cost += costOf(abs(goalPos - p))
 	}
 
 	return cost
+}
+
+func costOf(distance int64) int64 {
+	if distance == 0 {
+		return 0
+	}
+	return distance + costOf(distance-1)
 }
 
 func abs(x int64) int64 {
