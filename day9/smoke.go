@@ -5,18 +5,147 @@ import (
 	"io"
 	"log"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 )
 
 func main() {
-	if err := run(os.Args, os.Stdout); err != nil {
+	// if err := part1(os.Args, os.Stdout); err != nil {
+	// 	fmt.Fprintf(os.Stderr, "%s\n", err)
+	// 	os.Exit(1)
+	// }
+	if err := part2(os.Args, os.Stdout); err != nil {
 		fmt.Fprintf(os.Stderr, "%s\n", err)
 		os.Exit(1)
 	}
 }
 
-func run(args []string, stdout io.Writer) error {
+type point struct {
+	x, y int
+}
+
+type location struct {
+	basin  point
+	height int
+}
+
+var basins [100][100]location
+
+func loadBasins() {
+	for i, row := range getMap() {
+		for j, height := range row {
+			basins[i][j].height = height
+			// use -1 as marker that basin for this location has not been identified
+			basins[i][j].basin.x = -1
+			basins[i][j].basin.y = -1
+		}
+	}
+}
+
+func findAndSetBasins() {
+	for i := 0; i < 100; i++ {
+		for j := 0; j < 100; j++ {
+			if basins[i][j].basin.x >= 0 || // basin already set
+				basins[i][j].height == 9 { // too high, not in any basin
+				continue
+			}
+
+			included := findAllFrom(point{i, j}, map[point]bool{})
+			nwPoint := mostNorthWestOf(included)
+			for p := range included {
+				basins[p.x][p.y].basin = nwPoint
+			}
+		}
+	}
+}
+
+func mostNorthWestOf(included map[point]bool) point {
+	p := point{1000, 1000} // 0,0 is most NW point. everything is NW of 1000,1000
+	for i := range included {
+		if i.y < p.y || (i.y == p.y && i.x < p.x) {
+			p = i
+		}
+	}
+	return p
+}
+
+func findAllFrom(p point, included map[point]bool) map[point]bool {
+
+	if included[p] ||
+		p.x < 0 || p.x >= 100 ||
+		p.y < 0 || p.y >= 100 ||
+		basins[p.x][p.y].height >= 9 {
+
+		return included
+	}
+
+	included[p] = true
+
+	included = findAllFrom(point{p.x - 1, p.y}, included)
+	included = findAllFrom(point{p.x + 1, p.y}, included)
+	included = findAllFrom(point{p.x, p.y - 1}, included)
+	included = findAllFrom(point{p.x, p.y + 1}, included)
+
+	return included
+}
+
+func printBasins() {
+
+	for i := 0; i < 100; i++ {
+		for j := 0; j < 100; j++ {
+			if basins[i][j].basin.x == -1 {
+				// fmt.Printf("      ")
+				fmt.Printf(" ")
+				continue
+			}
+			// fmt.Printf("%2d,%2d ", basins[i][j].basin.x, basins[i][j].basin.y)
+			fmt.Printf("%c", (basins[i][j].basin.x+basins[i][j].basin.y)%26+'a')
+		}
+		fmt.Print("\n")
+	}
+}
+
+func countBasinSizes() []int {
+
+	counts := map[point]int{}
+
+	for i := 0; i < 100; i++ {
+		for j := 0; j < 100; j++ {
+			counts[basins[i][j].basin]++
+		}
+	}
+
+	delete(counts, point{-1, -1})
+
+	sizes := []int{}
+	for _, size := range counts {
+		sizes = append(sizes, size)
+	}
+
+	sort.Ints(sizes)
+
+	return sizes
+}
+
+func part2(args []string, stdout io.Writer) error {
+	loadBasins()
+	findAndSetBasins()
+	printBasins()
+
+	basinSizes := countBasinSizes()
+	log.Printf("basin sizes %v", basinSizes)
+
+	s1 := basinSizes[len(basinSizes)-1]
+	s2 := basinSizes[len(basinSizes)-2]
+	s3 := basinSizes[len(basinSizes)-3]
+
+	log.Printf("%d x %d x %d = %d", s1, s2, s3, s1*s2*s3)
+
+	return nil
+}
+
+func part1(args []string, stdout io.Writer) error {
 
 	m := getMap()
 
