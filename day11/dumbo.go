@@ -8,18 +8,29 @@ import (
 )
 
 func main() {
-	if err := run(os.Args, os.Stdout); err != nil {
+	// if err := part1(os.Args, os.Stdout); err != nil {
+	// 	log.Fatalf("program failed: %s\n", err)
+	// }
+	if err := part2(os.Args, os.Stdout); err != nil {
 		log.Fatalf("program failed: %s\n", err)
 	}
 	fmt.Printf("fini\n")
 }
 
-func run(args []string, stdout io.Writer) error {
+func part1(args []string, stdout io.Writer) error {
 
 	loadGrid()
 	doOneHundredSteps()
 
 	log.Printf("flash count is %d", flashCount)
+
+	return nil
+}
+
+func part2(args []string, stdout io.Writer) error {
+
+	loadGrid()
+	stepUntilSync()
 
 	return nil
 }
@@ -40,10 +51,21 @@ func loadGrid() {
 	}
 }
 
+func stepUntilSync() {
+	for i := 1; i <= 1000; i++ {
+		doOneStep()
+		if flashCount >= 100 {
+			log.Printf("first sync at step %d", i)
+			return
+		}
+		flashCount = 0
+	}
+}
+
 func doOneHundredSteps() {
 	for i := 0; i < 100; i++ {
 		doOneStep()
-		displayGrid()
+		// displayGrid()
 	}
 }
 
@@ -77,7 +99,6 @@ func flashThemAll() {
 	// any dumbo with energy > 9 flashes
 	// incrementing neighbor energy levels by 1
 	// repeat
-
 	for {
 		flashCount := 0
 		for i := 0; i < 10; i++ {
