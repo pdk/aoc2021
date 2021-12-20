@@ -18,16 +18,29 @@ func main() {
 func run(args []string, stdout io.Writer) error {
 
 	loadCaves()
-	spelunk([]string{"start"})
+
+	for c := range caves {
+		if isLittleCave(c) && c != "start" {
+			spelunk([]string{"start"}, c)
+		}
+	}
 
 	log.Printf("there are %d paths thru these caves", len(allPaths))
 
 	return nil
 }
 
-var allPaths = [][]string{}
+var allPaths = map[string]bool{}
 
-func spelunk(path []string) {
+func savePath(path []string) {
+	p := strings.Join(path, "->")
+	if !allPaths[p] {
+		log.Printf("found a new path: %s", p)
+		allPaths[p] = true
+	}
+}
+
+func spelunk(path []string, oneSmallCave string) {
 
 	if len(path) > 1000 {
 		log.Printf("aborting spelunk, path too long: %#v", path)
@@ -37,17 +50,26 @@ func spelunk(path []string) {
 	here := path[len(path)-1]
 
 	if here == "end" {
-		allPaths = append(allPaths, path)
-		log.Printf("found a path: %#v", path)
+		savePath(path)
 		return
 	}
 
-	if isLittleCave(here) && isInPathTwice(here, path) {
-		return
+	if isLittleCave(here) {
+		visits := visitCount(here, path)
+
+		if here == oneSmallCave {
+			if visits > 2 {
+				return
+			}
+		} else {
+			if visits > 1 {
+				return
+			}
+		}
 	}
 
 	for connected := range caves[here].connected {
-		spelunk(append(path, connected))
+		spelunk(append(path, connected), oneSmallCave)
 	}
 }
 
@@ -55,17 +77,14 @@ func isLittleCave(name string) bool {
 	return name == strings.ToLower(name)
 }
 
-func isInPathTwice(name string, path []string) bool {
+func visitCount(name string, path []string) int {
 	c := 0
 	for _, each := range path {
 		if name == each {
 			c++
-			if c > 1 {
-				return true
-			}
 		}
 	}
-	return false
+	return c
 }
 
 func loadCaves() {
