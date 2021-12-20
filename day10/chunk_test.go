@@ -11,14 +11,17 @@ func TestParse(t *testing.T) {
 		err           error
 	}{
 		{"[]", "", nil},
-		{"[}", "}", errLineCorrupted},
+		{"[}", "}]", errLineCorrupted},
 		{"<>>", ">", nil}, // single chunk ok
 		{"<[]>", "", nil},
 		{"", "", nil},
 		{">", ">", errLineCorrupted},
-		{"{", "", errLineIncomplete},
+		{"{", "}", errLineIncomplete},
 		{"(<({[]})>)", "", nil},
-		{"(<({[>]})>)", ">", errLineCorrupted},
+		{"(<({[>]})>)", ">]})>)", errLineCorrupted},
+		{"(<{<[()", "]>}>)", errLineIncomplete},
+		{"(<{<[[]", "]>}>)", errLineIncomplete},
+		{"(<{<[{}", "]>}>)", errLineIncomplete},
 	} {
 		result, err := parse(testCase.input)
 		if err != testCase.err {
@@ -26,6 +29,25 @@ func TestParse(t *testing.T) {
 		}
 		if result != testCase.result {
 			t.Errorf("parsing %#v, expected result %#v, got %#v", testCase.input, testCase.result, result)
+		}
+	}
+}
+
+func TestScore(t *testing.T) {
+
+	for _, test := range []struct {
+		input string
+		score int
+	}{
+		{"}}]])})]", 288957},
+		{")}>]})", 5566},
+		{"}}>}>))))", 1480781},
+		{"]]}}]}]}>", 995444},
+		{"])}>", 294},
+	} {
+		result := score(test.input)
+		if result != test.score {
+			t.Errorf("scoring %s, expected %d, got %d", test.input, test.score, result)
 		}
 	}
 }
