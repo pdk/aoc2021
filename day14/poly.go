@@ -4,17 +4,47 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math"
 	"os"
+	"sort"
 )
 
 func main() {
-	if err := run(os.Args, os.Stdout); err != nil {
+	// if err := part1(os.Args, os.Stdout); err != nil {
+	// 	log.Fatalf("program failed: %s\n", err)
+	// }
+	if err := part2(os.Args, os.Stdout); err != nil {
 		log.Fatalf("program failed: %s\n", err)
 	}
 	fmt.Printf("fini\n")
 }
 
-func run(args []string, stdout io.Writer) error {
+type poly struct {
+	element rune
+	next    *poly
+}
+
+func newPoly(template string) *poly {
+	var r, c *poly
+
+	for _, e := range template {
+		if c == nil {
+			c = new(poly)
+		} else {
+			c.next = new(poly)
+			c = c.next
+		}
+		if r == nil {
+			r = c
+		}
+
+		c.element = e
+	}
+
+	return r
+}
+
+func part1(args []string, stdout io.Writer) error {
 
 	t := start
 
@@ -23,8 +53,49 @@ func run(args []string, stdout io.Writer) error {
 		log.Printf("counts %s", printable(counts(t)))
 	}
 
-	most, least := 0, 1000000
-	for _, v := range counts(t) {
+	most, least := mostAndLeast(counts(t))
+	log.Printf("most %d, least %d, diff %d", most, least, most-least)
+
+	return nil
+}
+
+func part2(args []string, stdout io.Writer) error {
+
+	t := newPoly(start)
+
+	for i := 0; i < 40; i++ {
+		t.insert()
+		log.Printf("counts %s", printable(t.counts()))
+	}
+
+	most, least := mostAndLeast(t.counts())
+	log.Printf("most %d, least %d, diff %d", most, least, most-least)
+
+	return nil
+}
+
+func printable(counts map[rune]int) string {
+
+	keys := []rune{}
+	for k := range counts {
+		keys = append(keys, k)
+	}
+	sort.Slice(keys, func(i, j int) bool {
+		return keys[i] < keys[j]
+	})
+
+	s := ""
+
+	for _, k := range keys {
+		s += fmt.Sprintf("%c: %6d, ", k, counts[k])
+	}
+	return s
+}
+
+func mostAndLeast(counts map[rune]int) (int, int) {
+	most, least := 0, math.MaxInt
+
+	for _, v := range counts {
 		if v > most {
 			most = v
 		}
@@ -33,17 +104,7 @@ func run(args []string, stdout io.Writer) error {
 		}
 	}
 
-	log.Printf("most %d, least %d, diff %d", most, least, most-least)
-
-	return nil
-}
-
-func printable(counts map[rune]int) string {
-	s := ""
-	for k, v := range counts {
-		s += fmt.Sprintf("%c: %d, ", k, v)
-	}
-	return s
+	return most, least
 }
 
 func counts(template string) map[rune]int {
@@ -56,13 +117,23 @@ func counts(template string) map[rune]int {
 	return r
 }
 
+func (p *poly) counts() map[rune]int {
+	r := map[rune]int{}
+
+	for c := p; c != nil; c = c.next {
+		r[c.element]++
+	}
+
+	return r
+}
+
 func insert(template string) string {
 	r := ""
 
 	var last rune
 	for _, each := range template {
 
-		ins, ok := rules[insertKey{last, each}]
+		ins, ok := rules[pair{last, each}]
 		if ok {
 			r += string(ins)
 		}
@@ -71,4 +142,16 @@ func insert(template string) string {
 	}
 
 	return r
+}
+
+func (p *poly) insert() {
+
+	for c := p; c.next != nil; c = c.next {
+		k := pair{c.element, c.next.element}
+		ins, ok := rules[k]
+		if ok {
+			c.next = &poly{ins, c.next}
+			c = c.next
+		}
+	}
 }

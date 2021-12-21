@@ -2,11 +2,11 @@ package main
 
 var start = "OFSNKKHCBSNKBKFFCVNB"
 
-type insertKey struct {
-	before, after rune
+type pair struct {
+	left, right rune
 }
 
-type ruleMap map[insertKey]rune
+type ruleMap map[pair]rune
 
 var rules = ruleMap{
 	{'K', 'C'}: 'F',
