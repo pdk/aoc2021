@@ -10,38 +10,43 @@ import (
 )
 
 func main() {
-	// if err := part1(os.Args, os.Stdout); err != nil {
-	// 	log.Fatalf("program failed: %s\n", err)
-	// }
+	if err := part1(os.Args, os.Stdout); err != nil {
+		log.Fatalf("program failed: %s\n", err)
+	}
 	if err := part2(os.Args, os.Stdout); err != nil {
 		log.Fatalf("program failed: %s\n", err)
 	}
 	fmt.Printf("fini\n")
 }
 
-type poly struct {
-	element rune
-	next    *poly
+type pairCounts struct {
+	first  rune
+	pairs  map[pair]int
+	counts map[rune]int
 }
 
-func newPoly(template string) *poly {
-	var r, c *poly
+func newPairCounts(first rune) pairCounts {
+	return pairCounts{
+		first,
+		map[pair]int{},
+		map[rune]int{first: 1},
+	}
+}
 
-	for _, e := range template {
-		if c == nil {
-			c = new(poly)
-		} else {
-			c.next = new(poly)
-			c = c.next
-		}
-		if r == nil {
-			r = c
-		}
+func loadPairs(template string) pairCounts {
+	pc := newPairCounts(rune(template[0]))
 
-		c.element = e
+	for i := 0; i < len(template)-1; i++ {
+		left, right := rune(template[i]), rune(template[i+1])
+		pc.addPairs(pair{left, right}, 1)
 	}
 
-	return r
+	return pc
+}
+
+func (pc *pairCounts) addPairs(p pair, count int) {
+	pc.pairs[p] += count
+	pc.counts[p.right] += count
 }
 
 func part1(args []string, stdout io.Writer) error {
@@ -61,17 +66,39 @@ func part1(args []string, stdout io.Writer) error {
 
 func part2(args []string, stdout io.Writer) error {
 
-	t := newPoly(start)
+	pc := loadPairs(start)
 
 	for i := 0; i < 40; i++ {
-		t.insert()
-		log.Printf("counts %s", printable(t.counts()))
+		pc = pc.incrPairCounts()
+		log.Printf("counts %s", printable(pc.counts))
 	}
 
-	most, least := mostAndLeast(t.counts())
+	most, least := mostAndLeast(pc.counts)
 	log.Printf("most %d, least %d, diff %d", most, least, most-least)
 
 	return nil
+}
+
+func (pc pairCounts) incrPairCounts() pairCounts {
+
+	newPC := newPairCounts(pc.first)
+
+	for cur, cnt := range pc.pairs {
+		ins, ok := rules[cur]
+		if !ok {
+			newPC.addPairs(cur, cnt)
+			continue
+		}
+
+		newLeftPair := pair{cur.left, ins}
+		newRightPair := pair{ins, cur.right}
+
+		newPC.addPairs(newLeftPair, cnt)
+		newPC.addPairs(newRightPair, cnt)
+
+	}
+
+	return newPC
 }
 
 func printable(counts map[rune]int) string {
@@ -117,16 +144,6 @@ func counts(template string) map[rune]int {
 	return r
 }
 
-func (p *poly) counts() map[rune]int {
-	r := map[rune]int{}
-
-	for c := p; c != nil; c = c.next {
-		r[c.element]++
-	}
-
-	return r
-}
-
 func insert(template string) string {
 	r := ""
 
@@ -142,16 +159,4 @@ func insert(template string) string {
 	}
 
 	return r
-}
-
-func (p *poly) insert() {
-
-	for c := p; c.next != nil; c = c.next {
-		k := pair{c.element, c.next.element}
-		ins, ok := rules[k]
-		if ok {
-			c.next = &poly{ins, c.next}
-			c = c.next
-		}
-	}
 }
