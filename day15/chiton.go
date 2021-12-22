@@ -31,6 +31,7 @@ type pt struct {
 
 type path struct {
 	totalRisk int
+	deadEnd   bool
 	moves     []pt
 }
 
@@ -38,7 +39,7 @@ var (
 	exploredPoints = map[pt]bool{
 		{0, 0}: true,
 	}
-	exploredPaths = []path{
+	exploredPaths = []*path{
 		{
 			moves: []pt{
 				{0, 0},
@@ -50,13 +51,17 @@ var (
 
 func run(args []string, stdout io.Writer) error {
 
-	for i := 0; i < 10000; i++ {
+	for i := 0; i < 1000000; i++ {
 		path, move, risk := findNextShortestPath()
 		exploredPaths = append(exploredPaths, newPath(path, move, risk))
 		exploredPoints[move] = true
 
-		if move.x == 99 && move.y == 99 {
+		if move.x == 499 && move.y == 499 {
 			break
+		}
+
+		if i%1000 == 0 {
+			log.Printf("%d paths, %d dead ends", len(exploredPaths), deadEndCount())
 		}
 	}
 
@@ -65,6 +70,15 @@ func run(args []string, stdout io.Writer) error {
 	return nil
 }
 
+func deadEndCount() int {
+	count := 0
+	for _, e := range exploredPaths {
+		if e.deadEnd {
+			count++
+		}
+	}
+	return count
+}
 func logPaths() {
 	for _, p := range exploredPaths[len(exploredPaths)-100:] {
 		log.Printf("risk %4d %v", p.totalRisk, movesString(p.moves))
@@ -81,13 +95,13 @@ func movesString(moves []pt) string {
 	return strings.Join(r, "->")
 }
 
-func newPath(fromPath int, move pt, risk int) path {
+func newPath(fromPath int, move pt, risk int) *path {
 
 	// make a copy of the slice so we don't go messing up existing paths.
 	moves := append([]pt{}, exploredPaths[fromPath].moves...)
 	moves = append(moves, move)
 
-	return path{
+	return &path{
 		totalRisk: risk,
 		moves:     moves,
 	}
@@ -103,14 +117,25 @@ func findNextShortestPath() (int, pt, int) {
 	leastRisk := math.MaxInt
 
 	for i, p := range exploredPaths {
+		if p.deadEnd {
+			continue
+		}
 		lastMove := p.moves[len(p.moves)-1]
+		noMoveCount := 0
 		for _, d := range dirs {
 			candidatePt, candidateRisk := getNextRisk(lastMove, d)
-			if candidateRisk >= 0 && p.totalRisk+candidateRisk < leastRisk {
+			if candidateRisk == -1 {
+				noMoveCount++
+				continue
+			}
+			if p.totalRisk+candidateRisk < leastRisk {
 				nextPath = i
 				leastRisk = p.totalRisk + candidateRisk
 				nextPoint = candidatePt
 			}
+		}
+		if noMoveCount == 4 {
+			p.deadEnd = true
 		}
 	}
 
@@ -133,11 +158,29 @@ func getNextRisk(p pt, d dir) (pt, int) {
 }
 
 func getRisk(x, y int) int {
-	if exploredPoints[pt{x, y}] || x < 0 || x >= len(risks[0]) || y < 0 || y >= len(risks) {
+	if exploredPoints[pt{x, y}] || x < 0 || x >= 500 || y < 0 || y >= 500 {
 		return -1
 	}
 
-	c := risks[y][x]
+	r := int(risks[y%100][x%100] - '0')
 
-	return int(c - '0')
+	for ; x > 100; x -= 100 { // so hack
+		switch r {
+		case 9:
+			r = 1
+		default:
+			r++
+		}
+	}
+
+	for ; y > 100; y -= 100 {
+		switch r {
+		case 9:
+			r = 1
+		default:
+			r++
+		}
+	}
+
+	return r
 }
