@@ -27,40 +27,34 @@ func run(args []string, stdout io.Writer) error {
 
 	// target area: x=137..171, y=-98..-73
 	target := newArea(137, 171, -98, -73)
-	success := false
+	hitCount := 0
+	tries := 0
 
-	for tryY := 1000; tryY > 10; tryY-- {
+	for tryY := 100; tryY > -100; tryY-- {
+		for tryX := 0; tryX <= 200; tryX++ {
+			tries++
 
-		p := pos{0, 0}
-		v := velocity{17, tryY}
-		highest := 0
+			p := pos{0, 0}
+			v := velocity{tryX, tryY}
 
-		for i := 0; i < 200000; i++ {
+			for i := 0; i < 200000; i++ {
 
-			p, v = step(p, v)
-			highest = max(highest, p.y)
+				p, v = step(p, v)
 
-			if i%1000 == 0 {
-				log.Printf("i=%6d p=%3d,%3d v=%3d,%3d in=%t below=%t", i, p.x, p.y, v.x, v.y, isWithin(p, target), isBelow(p, target))
+				if isBeyond(p, target) {
+					break
+				}
+
+				if isWithin(p, target) {
+					hitCount++
+					log.Printf("hit!!!  i=%6d p=%3d,%3d v=%3d,%3d", i, p.x, p.y, v.x, v.y)
+					break
+				}
 			}
-
-			if isBelow(p, target) {
-				log.Printf("missed it")
-				break
-			}
-
-			if isWithin(p, target) {
-				success = true
-				log.Printf("hit!!!")
-				log.Printf("i=%6d p=%3d,%3d v=%3d,%3d in=%t below=%t", i, p.x, p.y, v.x, v.y, isWithin(p, target), isBelow(p, target))
-				break
-			}
-		}
-		if success {
-			log.Printf("tryY = %d, highest = %d", tryY, highest)
-			break
 		}
 	}
+
+	log.Printf("hit count %d (tries %d)", hitCount, tries)
 
 	return nil
 }
@@ -112,8 +106,8 @@ func isWithin(p pos, a area) bool {
 
 }
 
-func isBelow(p pos, a area) bool {
-	return p.y < a.se.y
+func isBeyond(p pos, a area) bool {
+	return p.y < a.se.y || p.x > a.se.x
 }
 
 // step computes a new position and velocity
