@@ -47,16 +47,55 @@ func run(args []string, stdout io.Writer) error {
 	// 	np(np(np(np(4, 3), 4), 4), np(7, np(np(8, 4), 9))),
 	// 	np(1, 1))
 
-	s := data[0]
-	// log.Printf("s = %s", s.String())
-	for i := 1; i < len(data); i++ {
-		s = add(s, data[i])
-		// log.Printf("s = %s", s.String())
+	// s := data[0]
+	// // log.Printf("s = %s", s.String())
+	// for i := 1; i < len(data); i++ {
+	// 	s = add(s, data[i])
+	// 	// log.Printf("s = %s", s.String())
+	// }
+
+	// log.Printf("final mag is %d", mag(s))
+
+	maxMag := 0
+
+	for i := 0; i < len(data); i++ {
+		for j := i + 1; j < len(data); j++ {
+
+			a := copy(data[i])
+			b := copy(data[j])
+
+			newMag := mag(add(a, b))
+			if newMag > maxMag {
+				maxMag = newMag
+				log.Printf("new max mag %d", maxMag)
+			}
+
+			a = copy(data[i])
+			b = copy(data[j])
+
+			newMag = mag(add(b, a))
+			if newMag > maxMag {
+				maxMag = newMag
+				log.Printf("new max mag %d", maxMag)
+			}
+
+		}
 	}
 
-	log.Printf("final mag is %d", mag(s))
+	log.Printf("max mag is %d", maxMag)
 
 	return nil
+}
+
+func copy(n *node) *node {
+	if n.isVal() {
+		return &node{val: n.val}
+	}
+
+	return &node{
+		left:  copy(n.left),
+		right: copy(n.right),
+	}
 }
 
 func mag(n *node) int {
@@ -74,11 +113,11 @@ func mag(n *node) int {
 
 func add(a, b *node) *node {
 
-	log.Printf("%s + %s", a, b)
+	// log.Printf("%s + %s", a, b)
 
 	ans := reduce(np(a, b))
 
-	log.Printf("= %s", ans)
+	// log.Printf("= %s", ans)
 
 	return ans
 }
