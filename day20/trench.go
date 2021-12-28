@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math"
 	"os"
 	"strconv"
 	"strings"
@@ -22,41 +23,82 @@ func run(args []string, stdout io.Writer) error {
 	// log.Printf("algo is %d long", len(algo))
 	// log.Printf("testAlgo is %d long", len(testAlgo))
 
-	// i := img(testImage).pad().pad()
-	// i.print()
-	// i = i.apply(testAlgo)
-	// i.print()
-	// i = i.apply(testAlgo)
-	// i.print()
+	// i := img(testImage)
+	// for k := 0; k < 50; k++ {
+	// 	i = i.pad(".", 4)
+	// 	i = i.apply(testAlgo)
+	// 	i = i.trim()
+	// }
 
-	i := img(image).pad(".").pad(".")
-	i.print()
-	// log.Printf("start with %d pixels", i.countLit())
-	i = i.apply(algo)
-	i.print()
-	i = i.pad("#").pad("#")
-	i = i.apply(algo)
-	i.print()
+	i := img(image)
+	for k := 0; k < 25; k++ {
+		i = i.pad(".", 4)
+		i = i.apply(algo)
+		i = i.trim().pad("#", 4)
+		i = i.apply(algo)
+		i = i.trim()
+	}
 
-	// log.Printf("first apply gets %d pixels", i.countLit())
-	// i = i.apply(algo)
-	log.Printf("second apply gets %d pixels", i.countLit())
+	i.print()
+	log.Printf("lit pixel count %d", i.countLit())
 
 	return nil
 }
 
 type img []string
 
-func (i img) pad(c string) img {
-	p := strings.Repeat(c, len(i[0])+4)
+func (i img) pad(c string, n int) img {
+	p := strings.Repeat(c, len(i[0])+(2*n))
 
-	ni := []string{p, p}
+	ni := []string{}
 
-	for _, l := range i {
-		ni = append(ni, c+c+l+c+c)
+	for i := 0; i < n; i++ {
+		ni = append(ni, p)
 	}
 
-	ni = append(ni, p, p)
+	for _, l := range i {
+		ni = append(ni, strings.Repeat(c, n)+l+strings.Repeat(c, n))
+	}
+
+	for i := 0; i < n; i++ {
+		ni = append(ni, p)
+	}
+
+	return ni
+}
+
+func (i img) trim() img {
+
+	firstY, lastY := -1, math.MaxInt
+	minLeft, maxRight := math.MaxInt, 0
+
+	for y := 0; y < len(i); y++ {
+
+		ind := strings.Index(i[y], "#")
+		if ind == -1 {
+			continue
+		}
+
+		rind := strings.LastIndex(i[y], "#")
+
+		if firstY == -1 {
+			firstY = y
+		}
+		lastY = y
+
+		if ind < minLeft {
+			minLeft = ind
+		}
+		if rind > maxRight {
+			maxRight = rind
+		}
+	}
+
+	ni := img{}
+
+	for y := firstY; y <= lastY; y++ {
+		ni = append(ni, i[y][minLeft:maxRight+1])
+	}
 
 	return ni
 }
