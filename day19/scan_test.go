@@ -7,13 +7,27 @@ import (
 
 func TestCombineTestData(t *testing.T) {
 
-	merged, ok := mergeAll(testData[0], testData[1:])
+	merged, _, ok := mergeAll(testData[0], testData[1:])
 
 	if !ok {
 		t.Errorf("failed to merge all. expected ok=true, got ok=false")
 	}
 	if merged.size() != 79 {
 		t.Errorf("failed to merge all. expected 79 beacons, got %d", merged.size())
+	}
+}
+
+func TestMaxDist(t *testing.T) {
+
+	points := []pt{
+		{1105, -1205, 1229},
+		{-92, -2380, -20},
+	}
+
+	d := maxDist(points)
+
+	if d != 3621 {
+		t.Errorf("expected distance %d, got %d", 3621, d)
 	}
 }
 
