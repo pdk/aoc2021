@@ -4,6 +4,16 @@ import (
 	"testing"
 )
 
+func TestIntersect(t *testing.T) {
+
+	a := cube{which: on, xRange: lohi{1, 10}, yRange: lohi{6, 6}, zRange: lohi{1, 1}}
+	b := cube{which: off, xRange: lohi{4, 4}, yRange: lohi{1, 10}, zRange: lohi{1, 1}}
+
+	if !a.intersects(b) {
+		t.Errorf("expected a,b to intersect, but didn't")
+	}
+}
+
 func TestDataOrdering(t *testing.T) {
 
 	for _, each := range testData {
@@ -41,8 +51,6 @@ func TestNumbers(t *testing.T) {
 	if m != 98790 {
 		t.Errorf("max is %d", m)
 	}
-
-	// t.Errorf("plus/minus is %f/%f", float64(m)-0.5, float64(m)+0.5)
 }
 
 func maxInt(ints ...int) int {

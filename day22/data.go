@@ -1,21 +1,5 @@
 package main
 
-var fooData = []cube{
-	{which: on, xRange: lohi{1, 6}, yRange: lohi{1, 6}, zRange: lohi{1, 1}},
-	// {which: on, xRange: lohi{1, 10}, yRange: lohi{1, 10}, zRange: lohi{1, 10}},
-	{which: off, xRange: lohi{1, 5}, yRange: lohi{1, 5}, zRange: lohi{1, 1}},
-	// {which: on, xRange: lohi{1, 5}, yRange: lohi{1, 5}, zRange: lohi{1, 5}},
-	// {which: on, xRange: lohi{11, 20}, yRange: lohi{1, 10}, zRange: lohi{1, 10}},
-	{which: off, xRange: lohi{2, 2}, yRange: lohi{3, 3}, zRange: lohi{1, 1}},
-	// {which: off, xRange: lohi{5, 5}, yRange: lohi{6, 6}, zRange: lohi{7, 7}},
-	// {which: off, xRange: lohi{1, 1}, yRange: lohi{4, 4}, zRange: lohi{9, 9}},
-	// {which: on, xRange: lohi{1, 10}, yRange: lohi{1, 10}, zRange: lohi{1, 10}},
-}
-
-// 2021/12/29 12:19:26 xBlades 5: [0.5 10.5 5.5 1.5 2.5]
-// 2021/12/29 12:19:26 yBlades 5: [0.5 10.5 5.5 2.5 3.5]
-// 2021/12/29 12:19:26 zBlades 5: [0.5 10.5 5.5 3.5 4.5]
-
 var initData = []cube{
 	{which: on, xRange: lohi{-5, 47}, yRange: lohi{-31, 22}, zRange: lohi{-19, 33}},
 	{which: on, xRange: lohi{-44, 5}, yRange: lohi{-27, 21}, zRange: lohi{-14, 35}},

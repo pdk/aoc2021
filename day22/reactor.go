@@ -6,121 +6,145 @@ import (
 
 func main() {
 
-	sliceAndDice(data)
-
-}
-
-func sliceAndDice(rules []cube) {
+	rules := data
 
 	// number the rules
 	for i := range rules {
 		rules[i].ruleNo = i
 	}
 
-	// printCubes(rules)
-
-	log.Printf("slice and dice %d cubes, total volume %d, %d", len(rules), sumOnVolumes(rules), sumOffVolumes(rules))
-
-	xBlades := distinct(xPlains(rules))
-	yBlades := distinct(yPlains(rules))
-	zBlades := distinct(zPlains(rules))
-
-	// printSlices(rules[0], "rule 0", xBlades, yBlades, zBlades)
-	// printSlices(rules[1], "rule 1", xBlades, yBlades, zBlades)
-	// printSlices(rules[2], "rule 2", xBlades, yBlades, zBlades)
-
-	log.Printf("xBlades %d", len(xBlades))
-	log.Printf("yBlades %d", len(yBlades))
-	log.Printf("zBlades %d", len(zBlades))
-
-	sliced := xSlice(xBlades, rules)
-	log.Printf("after x slicing %d cubes, total volume %d, %d", len(sliced), sumOnVolumes(sliced), sumOffVolumes(sliced))
-
-	sliced = ySlice(yBlades, sliced)
-	log.Printf("after y slicing %d cubes, total volume %d, %d", len(sliced), sumOnVolumes(sliced), sumOffVolumes(sliced))
-
-	sliced = zSlice(zBlades, sliced)
-	log.Printf("after z slicing %d cubes, total volume %d, %d", len(sliced), sumOnVolumes(sliced), sumOffVolumes(sliced))
-
-	m := map[cubeDims][]cube{}
-
-	for i, c := range sliced {
-		if i%1000 == 0 {
-			log.Printf("mapping %d", i)
-		}
-		e := m[c.cubeDims()]
-		m[c.cubeDims()] = append(e, c)
+	totOn := 0
+	for i := 0; i < len(rules); i++ {
+		v := computeOnVolume(rules[i], i, rules)
+		log.Printf("rule %d has volume %d", i, v)
+		totOn += v
 	}
-
-	log.Printf("distinct cube dims %d", len(m))
-
-	// make sure none of the sliced cubes intersect
-	// allCubeDims := []cube{}
-	// for _, v := range m {
-	// 	allCubeDims = append(allCubeDims, v[0])
-	// }
-	// for i, a := range allCubeDims {
-	// 	for j, b := range allCubeDims {
-	// 		if i == j {
-	// 			continue
-	// 		}
-	// 		if a.intersects(b) {
-	// 			log.Printf("found intersection %v %v", a, b)
-	// 		}
-	// 	}
-	// }
-
-	totOn, totOff, tot := 0, 0, 0
-	for k := range m {
-		_, on, off, v := volume(m[k])
-
-		// log.Printf("volume for %v (%d): %d %d %d", c[0], rno, on, off, v)
-
-		totOn += on
-		totOff += off
-		tot += v
-	}
-
-	log.Printf("totOn %d, totOff %d, tot %d", totOn, totOff, tot)
+	log.Printf("total on is %d", totOn)
 }
 
-func sumOnVolumes(cubes []cube) int {
-	s := 0
-	for _, c := range cubes {
-		if c.which == on {
-			s += c.volume()
+// computeVolume computes the volume of the given rule/cube, but subtracts out
+// what was set by previous rules.
+func computeOnVolume(rule cube, ruleNo int, rules []cube) int {
+
+	if rule.invalid() || rule.which == off {
+		return 0
+	}
+
+	for i := ruleNo - 1; i >= 0; i-- {
+		if rule.intersects(rules[i]) {
+			except := rules[i]
+			return computeOnVolumeParts(rule, except, i, rules)
 		}
 	}
-	return s
+
+	// Reached bottom. There are no more previous rules which might have already
+	// been ON for this cubelet. Now we can go forward looking for OFFs that may
+	// have covered this.
+
+	return subtractOffVolume(rule, ruleNo, rules)
 }
 
-func sumOffVolumes(cubes []cube) int {
-	s := 0
-	for _, c := range cubes {
-		if c.which == off {
-			s += c.volume()
+func subtractOffVolume(rule cube, ruleNo int, rules []cube) int {
+
+	if rule.invalid() {
+		return 0
+	}
+
+	for i := ruleNo + 1; i < len(rules); i++ {
+		if rules[i].which == off && rule.intersects(rules[i]) {
+			offCube := rules[i]
+			return subtractOffVolumeParts(rule, offCube, i, rules)
 		}
 	}
-	return s
+
+	// woot. there are no OFF cubes blocking.
+	return rule.volume()
 }
 
-// return max rule number, on volume, off volume, volume
-func volume(cubes []cube) (int, int, int, int) {
-	maxRule := -1
-	w := on
-	v := cubes[0].volume()
+func subtractOffVolumeParts(rule, offCube cube, ruleNo int, rules []cube) int {
 
-	for _, c := range cubes {
-		if c.ruleNo > maxRule {
-			w = c.which
-			maxRule = c.ruleNo
-		}
+	// the "subtraction" is NOT including the volume of the intersect returned
+	// from the breakup.
+
+	_, outliers := breakUp(rule, offCube)
+
+	totvol := 0
+	for _, out := range outliers {
+		totvol += subtractOffVolume(out, ruleNo, rules)
 	}
 
-	if w == on {
-		return maxRule, v, 0, v
+	return totvol
+}
+
+func computeOnVolumeParts(rule, except cube, ruleNo int, rules []cube) int {
+
+	intersect, outliers := breakUp(rule, except)
+
+	totvol := 0
+	for _, out := range outliers {
+		totvol += computeOnVolume(out, ruleNo, rules)
 	}
-	return maxRule, 0, v, v
+
+	if except.which == off {
+		// claim volume that this rule turned ON
+		return subtractOffVolume(intersect, ruleNo, rules) + totvol
+	}
+
+	return totvol
+}
+
+func breakUp(rule, except cube) (intersection cube, outliers []cube) {
+
+	left := cube{
+		xRange: lohi{rule.xRange.from, min(rule.xRange.to, except.xRange.from-1)},
+		yRange: lohi{rule.yRange.from, rule.yRange.to},
+		zRange: lohi{rule.zRange.from, rule.zRange.to},
+	}
+
+	right := cube{
+		xRange: lohi{max(rule.xRange.from, except.xRange.to+1), rule.xRange.to},
+		yRange: lohi{rule.yRange.from, rule.yRange.to},
+		zRange: lohi{rule.zRange.from, rule.zRange.to},
+	}
+
+	front := cube{
+		xRange: lohi{max(rule.xRange.from, except.xRange.from), min(rule.xRange.to, except.xRange.to)},
+		yRange: lohi{rule.yRange.from, rule.yRange.to},
+		zRange: lohi{rule.zRange.from, min(rule.zRange.to, except.zRange.from-1)},
+	}
+
+	back := cube{
+		xRange: lohi{max(rule.xRange.from, except.xRange.from), min(rule.xRange.to, except.xRange.to)},
+		yRange: lohi{rule.yRange.from, rule.yRange.to},
+		zRange: lohi{max(rule.zRange.from, except.zRange.to+1), rule.zRange.to},
+	}
+
+	top := cube{
+		xRange: lohi{max(rule.xRange.from, except.xRange.from), min(rule.xRange.to, except.xRange.to)},
+		yRange: lohi{max(rule.yRange.from, except.yRange.to+1), rule.yRange.to},
+		zRange: lohi{max(rule.zRange.from, except.zRange.from), min(rule.zRange.to, except.zRange.to)},
+	}
+
+	bottom := cube{
+		xRange: lohi{max(rule.xRange.from, except.xRange.from), min(rule.xRange.to, except.xRange.to)},
+		yRange: lohi{rule.yRange.from, min(rule.yRange.to, except.yRange.from-1)},
+		zRange: lohi{max(rule.zRange.from, except.zRange.from), min(rule.zRange.to, except.zRange.to)},
+	}
+
+	intersect := rule.intersection(except)
+
+	return intersect, []cube{
+		left, right, front, back, top, bottom,
+	}
+}
+
+func (c cube) intersection(other cube) cube {
+
+	return cube{
+		xRange: lohi{max(c.xRange.from, other.xRange.from), min(c.xRange.to, other.xRange.to)},
+		yRange: lohi{max(c.yRange.from, other.yRange.from), min(c.yRange.to, other.yRange.to)},
+		zRange: lohi{max(c.zRange.from, other.zRange.from), min(c.zRange.to, other.zRange.to)},
+	}
 }
 
 type which int
@@ -134,23 +158,10 @@ type lohi struct {
 	from, to int
 }
 
-// cubeDims used for index of map
-type cubeDims struct {
-	xRange, yRange, zRange lohi
-}
-
 type cube struct {
 	ruleNo int
 	which
 	xRange, yRange, zRange lohi
-}
-
-func (c cube) cubeDims() cubeDims {
-	return cubeDims{
-		xRange: c.xRange,
-		yRange: c.yRange,
-		zRange: c.zRange,
-	}
 }
 
 func (c cube) volume() int {
@@ -159,230 +170,27 @@ func (c cube) volume() int {
 		(1 + c.zRange.to - c.zRange.from)
 }
 
-func distinct(input []float64) []float64 {
-	plains := []float64{}
-	m := map[float64]bool{}
-
-	for _, p := range input {
-		if !m[p] {
-			m[p] = true
-			plains = append(plains, p)
-		}
-	}
-
-	return plains
+func (c cube) invalid() bool {
+	return c.xRange.from > c.xRange.to ||
+		c.yRange.from > c.yRange.to ||
+		c.zRange.from > c.zRange.to
 }
 
-func xPlains(cubes []cube) []float64 {
-	plains := []float64{}
+func (c cube) intersects(c2 cube) bool {
 
-	for _, e := range cubes {
-		p1 := float64(e.xRange.from) - 0.5
-		p2 := float64(e.xRange.to) + 0.5
-		plains = append(plains, p1, p2)
-	}
-
-	return plains
+	return !c.intersection(c2).invalid()
 }
 
-func yPlains(cubes []cube) []float64 {
-	plains := []float64{}
-
-	for _, e := range cubes {
-		p1 := float64(e.yRange.from) - 0.5
-		p2 := float64(e.yRange.to) + 0.5
-		plains = append(plains, p1, p2)
+func min(a, b int) int {
+	if a < b {
+		return a
 	}
-
-	return plains
+	return b
 }
 
-func zPlains(cubes []cube) []float64 {
-	plains := []float64{}
-
-	for _, e := range cubes {
-		p1 := float64(e.zRange.from) - 0.5
-		p2 := float64(e.zRange.to) + 0.5
-		plains = append(plains, p1, p2)
+func max(a, b int) int {
+	if a > b {
+		return a
 	}
-
-	return plains
+	return b
 }
-
-func xSlice(blades []float64, cubes []cube) []cube {
-	nCubes := []cube{}
-
-	for _, c := range cubes {
-		nCubes = append(nCubes, c.xSplit(blades...)...)
-	}
-
-	return nCubes
-}
-
-func ySlice(blades []float64, cubes []cube) []cube {
-	nCubes := []cube{}
-
-	for _, c := range cubes {
-		nCubes = append(nCubes, c.ySplit(blades...)...)
-	}
-
-	return nCubes
-}
-
-func zSlice(blades []float64, cubes []cube) []cube {
-	nCubes := []cube{}
-
-	for _, c := range cubes {
-		nCubes = append(nCubes, c.zSplit(blades...)...)
-	}
-
-	return nCubes
-}
-
-func (c cube) xSplit(vals ...float64) []cube {
-
-	for _, val := range vals {
-		if float64(c.xRange.from) < val && val < float64(c.xRange.to) {
-			c1 := c // copy original
-			c1.xRange.to = int(val - 0.5)
-			c2 := c // another copy
-			c2.xRange.from = int(val + 0.5)
-
-			// log.Printf("split on x %f between %d - %d, creating %d - %d and %d - %d",
-			// 	val, c.xRange.from, c.xRange.to,
-			// 	c1.xRange.from, c1.xRange.to,
-			// 	c2.xRange.from, c2.xRange.to)
-
-			return append(c1.xSplit(vals...), c2.xSplit(vals...)...)
-		}
-	}
-
-	return []cube{c}
-}
-
-func (c cube) ySplit(vals ...float64) []cube {
-
-	for _, val := range vals {
-		if float64(c.yRange.from) < val && val < float64(c.yRange.to) {
-			c1 := c // copy original
-			c1.yRange.to = int(val - 0.5)
-			c2 := c // another copy
-			c2.yRange.from = int(val + 0.5)
-
-			return append(c1.ySplit(vals...), c2.ySplit(vals...)...)
-		}
-	}
-
-	return []cube{c}
-}
-
-func (c cube) zSplit(vals ...float64) []cube {
-
-	for _, val := range vals {
-		if float64(c.zRange.from) < val && val < float64(c.zRange.to) {
-			c1 := c // copz original
-			c1.zRange.to = int(val - 0.5)
-			c2 := c // another copz
-			c2.zRange.from = int(val + 0.5)
-
-			return append(c1.zSplit(vals...), c2.zSplit(vals...)...)
-		}
-	}
-
-	return []cube{c}
-}
-
-// type pt struct {
-// 	x, y, z int
-// }
-
-// // between returns true if b is between a and b.
-// func between(a, b, c int) bool {
-// 	return a <= b && b <= c
-// }
-
-// // within return true if the point is within the cube.
-// func (p pt) within(c cube) bool {
-
-// 	return between(c.xRange.from, p.x, c.xRange.to) &&
-// 		between(c.yRange.from, p.y, c.yRange.to) &&
-// 		between(c.zRange.from, p.z, c.zRange.to)
-// }
-
-// func (c cube) intersects(c2 cube) bool {
-
-// 	for _, p := range c2.corners() {
-// 		if p.within(c) {
-// 			return true
-// 		}
-// 	}
-
-// 	for _, p := range c.corners() {
-// 		if p.within(c2) {
-// 			return true
-// 		}
-// 	}
-
-// 	return false
-// }
-
-// func (c cube) corners() []pt {
-// 	return []pt{
-// 		// front
-// 		{c.xRange.from, c.yRange.from, c.zRange.from},
-// 		{c.xRange.from, c.yRange.to, c.zRange.from},
-// 		{c.xRange.to, c.yRange.from, c.zRange.from},
-// 		{c.xRange.to, c.yRange.to, c.zRange.from},
-// 		// back
-// 		{c.xRange.from, c.yRange.from, c.zRange.to},
-// 		{c.xRange.from, c.yRange.to, c.zRange.to},
-// 		{c.xRange.to, c.yRange.from, c.zRange.to},
-// 		{c.xRange.to, c.yRange.to, c.zRange.to},
-// 	}
-// }
-
-// func printCubes(cubes []cube) {
-
-// 	g := newPGrid()
-
-// 	for i, c := range cubes {
-// 		for x := c.xRange.from; x <= c.xRange.to; x++ {
-// 			for y := c.yRange.from; y <= c.yRange.to; y++ {
-// 				g.put(x, y, i)
-// 			}
-// 		}
-// 	}
-
-// 	g.print()
-// }
-
-// type pGrid [8][8]int
-
-// func newPGrid() pGrid {
-// 	x := [8]int{-1, -1, -1, -1, -1, -1, -1, -1}
-// 	return pGrid{x, x, x, x, x, x, x, x}
-// }
-
-// func (g pGrid) print() {
-// 	for y := 7; y >= 0; y-- {
-// 		for x := 0; x < 8; x++ {
-// 			if g[x][y] > -1 {
-// 				fmt.Printf(" %2d", g[x][y])
-// 			} else {
-// 				fmt.Printf(" ..")
-// 			}
-// 		}
-// 		fmt.Printf("\n")
-// 	}
-// 	fmt.Printf("- - - - - - - - - - - - - \n")
-// }
-
-// func (g *pGrid) put(x, y, v int) {
-// 	g[x][y] = v
-// }
-
-// func printSlices(rule cube, name string, xBlades, yBlades, zBlades []float64) {
-// 	sliced := zSlice(zBlades, ySlice(yBlades, xSlice(xBlades, []cube{rule})))
-// 	fmt.Printf("%s sliced into %d (%d blades): \n", name, len(sliced), len(xBlades)+len(yBlades)+len(zBlades))
-// 	printCubes(sliced)
-// }
